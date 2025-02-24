@@ -27,16 +27,20 @@ Notre étude suit la méthodologie de Box-Jenkins pour la modélisation ARIMA, q
 1. Stationnarisation et Identification du Modèle
 
 *Analyse des données : Examiner la série pour détecter tendances, saisonnalité et anomalies.
+
 *Différenciation : Appliquer des transformations pour rendre la série stationnaire.
+
 *Sélection du modèle : Utiliser les graphiques ACF et PACF pour déterminer l’ordre (p, d, q).
-Estimation du Modèle
+
 
 2. Estimation des paramètres : Utiliser des méthodes statistiques (moindres carrés, maximum de vraisemblance) pour estimer les paramètres du modèle ARIMA choisi.
 
 3. Vérification et Prévision
 
 *Diagnostic : Vérifier que les résidus sont du bruit blanc.
+
 *Validation : Comparer les modèles via des indicateurs d’erreur (RMSE, AIC, etc.) et ajuster si nécessaire.
+
 *Prévision : Utiliser le modèle validé pour prévoir de nouvelles périodes et comparer ces prévisions aux observations réelles.
 
 
