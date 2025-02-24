@@ -44,7 +44,7 @@ Estimation du Modèle
 
 ## Résultat & Démo
 
-![](Prévision.TS)
+![](Prévision_TS.png)
 
 Ci-dessous, vous trouverez une capture d'écran du graphique généré par notre modèle ARIMA, qui montre :
 
