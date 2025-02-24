@@ -52,7 +52,7 @@ Notre étude suit la méthodologie de Box-Jenkins pour la modélisation ARIMA, q
 
 ![](Prévision_TS.png)
 
-Ci-dessous, vous trouverez une capture d'écran du graphique généré par notre modèle ARIMA, qui montre :
+Ci-dessus, vous trouverez une capture d'écran du graphique généré par notre modèle ARIMA, qui montre :
 
 La série d’entraînement (en noir) représentant les données historiques.
 Les prévisions (en bleu) produites par le modèle sur la période de test.
