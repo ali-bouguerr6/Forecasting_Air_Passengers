@@ -19,6 +19,8 @@ Les données de la base AirPassengers contiennent les colonnes suivantes :
 
 Les données de la base AirPassengers couvrent la période de janvier 1949 à décembre 1960, soit 12 années de données mensuelles.
 
+![](Avion.jpeg)
+
 
 ## Structure du projet
 
