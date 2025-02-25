@@ -1,0 +1,564 @@
+
+
+## Importation des packages et des données--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+```{r}
+# Charger les librairies
+library(tseries)
+library(forecast)
+library(ggplot2)
+library(dplyr)
+library(readr)
+
+```
+
+
+## Présentation de la problèmatique et description de la base de données--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+La base de données AirPassengers est une série temporelle classique qui représente le nombre mensuel de passagers aériens internationaux. Elle est souvent utilisée comme exemple pour illustrer les modèles de prévision, y compris les modèles ARIMA.
+
+Les données de la base AirPassengers contiennent les colonnes suivantes :
+
+* Month : La date (mois et année) de chaque observation.
+* Passengers : Le nombre de passagers aériens internationaux pour chaque mois.
+
+Les données de la base AirPassengers couvrent la période de janvier 1949 à décembre 1960, soit 12 années de données mensuelles.
+
+
+```{r}
+dataAir <- read.csv("C:/Users/alibo/OneDrive/Bureau/Projet/R/Time Series/AirPassagers/AirPassengers.csv")
+head(dataAir)
+
+```
+
+
+
+```{r}
+str(dataAir)        
+summary(dataAir) 
+head(dataAir)
+```
+
+```{r}
+dataAir$Month <- as.Date(paste0(dataAir$Month, "-01"), format = "%Y-%m-%d")
+
+# Vérifier la structure après conversion
+str(dataAir)
+```
+
+
+
+
+```{r}
+head(dataAir)
+```
+
+Notre étude va suivre la méthodologie de Box-Jenkins - ARIMA : 
+
+C'est une approche couramment utilisée pour modéliser et prévoir les séries temporelles. Elle comprend les étapes suivantes :
+
+1. Identification du modèle
+
+* Analyse des données : Examiner les données de la série temporelle pour détecter les tendances, la saisonnalité et les comportements anormaux ou ponctuels.
+
+* Différenciation : Si la série temporelle présente une tendance ou une saisonnalité, appliquer une différenciation (ou des transformations) afin de la rendre stationnaire.
+
+* Sélection du modèle : Utiliser les graphiques ACF (fonction d’autocorrélation) et PACF (fonction d’autocorrélation partielle) pour déterminer l’ordre (p, d, q) du modèle ARIMA.
+
+2.Estimation du modèle
+
+* Estimation des paramètres : Utiliser des méthodes d’estimation (par exemple, la méthode des moindres carrés ou la maximisation de la vraisemblance) pour estimer les paramètres du modèle ARIMA choisi.
+
+3.Vérification du modèle
+
+* Diagnostic du modèle : Vérifier si les résidus du modèle ARIMA sont du bruit blanc (c’est-à-dire qu’ils ne présentent pas de structure temporelle résiduelle).
+
+* Validation : Si le modèle ne parvient pas à décrire correctement la série, ajuster ou changer de modèle (p, d, q) et répéter les étapes précédentes.
+
+* Mesure de la performance : Calculer des indicateurs d’erreur (par exemple, l’erreur quadratique moyenne – RMSE, ou le critère d’information d’Akaike – AIC) pour comparer la qualité de différents modèles.
+
+* Prévision : Une fois le modèle validé, l’utiliser pour faire des prévisions sur de nouvelles périodes. Ces prévisions peuvent être évaluées a posteriori en les comparant aux données réellement observées.
+
+
+
+## Etape 1 : Identification du modèle--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+```{r}
+library(ggplot2)
+
+ggplot(dataAir, aes(x = Month, y = X.Passengers)) +
+  geom_line(color = "blue") +
+  labs(
+    title = "Evolution du nombre mensuel de passagers aériens internationaux",
+    x = "Date",
+    y = "Nombre de passagers"
+  ) +
+  theme_minimal()
+
+```
+
+Notre série présente clairement une tendance croissante, indiquant qu’elle n’est pas stationnaire.
+Pour confirmer ce constat et y remédier, nous allons analyser l’ACF et la PACF afin de vérifier la stationnarité et déterminer les transformations nécessaires.
+
+
+# ACF et PACF--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+L’ACF (Autocorrelation Function) et la PACF (Partial Autocorrelation Function) sont deux outils essentiels en analyse de séries temporelles. 
+Elles permettent de comprendre les dépendances temporelles dans une série et d’identifier la structure des composantes AR (autoregressive) et MA (moving average) d’un modèle ARIMA.
+
+#ACF 
+
+L’ACF mesure la corrélation entre une série et elle-même à différents décalages dans le temps. Autrement dit, elle évalue la similarité entre les observations lorsque l’on «décale" la série de lag périodes.
+
+#PACF
+
+La PACF mesure la corrélation partielle entre la série et elle-même pour un décalage , après avoir retiré l’effet des décalages intermédiaires.
+
+
+```{r}
+library(forecast)
+library(ggplot2)
+library(gridExtra)
+
+# ACF
+p1 <- ggAcf(dataAir$X.Passengers, lag.max = 30) +
+  ggtitle("ACF - Série de passagers aériens") +
+  xlab("Lag") +
+  ylab("Corrélation") +
+  theme_minimal()
+
+# PACF
+p2 <- ggPacf(dataAir$X.Passengers, lag.max = 30) +
+  ggtitle("PACF - Série de passagers aériens") +
+  xlab("Lag") +
+  ylab("Corrélation partielle") +
+  theme_minimal()
+
+# Afficher les deux graphiques l'un en dessous de l'autre
+grid.arrange(p1, p2, ncol = 1)
+
+```
+
+* ACF : on observe une décroissance lente de la corrélation en fonction du lag, suggérant une série non stationnaire (la corrélation ne retombe pas rapidement à zéro).
+
+* PACF : le premier pic est nettement significatif, tandis que les valeurs suivantes sont moins marquées. Cela  confirmer que la série nécessite une transformation (différenciation) pour devenir stationnaire.
+
+
+
+# Différenciation (Stationnarisation)--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+La différenciation sert à transformer une série temporelle non stationnaire en une série stationnaire. Concrètement, elle consiste à calculer la différence entre des valeurs successives.
+Cela permet de supprimer la tendance et, avec une différenciation saisonnière, d’éliminer la saisonnalité.
+
+Une série stationnaire est essentielle pour appliquer efficacement les modèles ARIMA, car ces derniers supposent que la moyenne et la variance restent constantes dans le temps.
+
+
+
+```{r}
+
+dataAir.ts <- ts(dataAir$X.Passengers, start = c(1949, 1), frequency = 12)
+
+# Différenciation
+difference.ts <- diff(dataAir.ts, lag = 1)
+
+
+plot(difference.ts,
+     main = "Série temporelle différenciée (AirPassengers)",
+     xlab = "Date",
+     ylab = "Différence")
+grid()
+
+
+```
+
+On constate que la série différenciée devient nettement plus stationnaire que la série d'origine, ce qui améliore significativement sa lisibilité sur le plan visuel.
+
+
+```{r}
+# ACF
+p1<- acf(difference.ts,
+    lag.max = 30,
+    main = "ACF - Série de passagers aériens diff",
+    xlab = "Décalage (lag)",
+    ylab = "Corrélation")
+grid()  # Ajoute un quadrillage
+
+# PACF
+p2<- pacf(difference.ts,
+     lag.max = 30,
+     main = "PACF - Série de passagers aériens diff",
+     xlab = "Décalage (lag)",
+     ylab = "Corrélation partielle")
+grid()
+
+```
+
+*Sur la série différenciée, la plupart des valeurs de l’ACF et de la PACF restent dans l’intervalle de confiance, ce qui indique que la dépendance entre les observations diminue nettement après un faible nombre de décalages. 
+
+*Autrement dit, la différenciation a permis de rendre la série beaucoup plus stationnaire, sans forte composante autorégressive ou moyenne mobile résiduelle à l’horizon des lags observés.
+
+
+
+# Vérification avec le test de Dickey-Fuller--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Le test de Dickey-Fuller (ou test de Dickey-Fuller augmenté) est un outil statistique qui permet de vérifier la stationnarité d'une série
+temporelle. 
+
+L'hypothèse nulle est que la série possède une racine unitaire (elle est non stationnaire), tandis que l'hypothèse alternative est qu'elle est stationnaire. 
+
+Si le p-value est faible (typiquement < 0,05), on rejette l'hypothèse nulle, indiquant que la série est stationnaire.
+
+```{r}
+
+library(tseries)
+
+# Effectuer le test ADF sur la série différenciée
+adf_result <- adf.test(difference.ts, alternative = "stationary")
+
+#Afficher un résumé des résultats
+print(adf_result)
+
+# Extraire la p-value et conclure
+p_value <- adf_result$p.value
+if (p_value < 0.05) {
+  message("Conclusion : la série différenciée est stationnaire (p < 0.05).")
+} else {
+  message("Conclusion : la série différenciée n'est pas stationnaire (p >= 0.05).")
+}
+
+```
+
+#Etape 2: Identification de l'ordre p,d,q - Modèle AutoArima--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Dans un premier temps, nous allons estimer manuellement un modèle ARIMA en fixant explicitement l'ordre (p, d, q) pour observer comment le modèle s'ajuste aux données. 
+
+Ensuite, nous utiliserons la fonction auto.arima() de R qui explore automatiquement différentes combinaisons de paramètres et sélectionne le modèle optimal en se basant sur un critère d'information (AIC, par exemple). 
+
+Cette démarche permet de comparer l'approche manuelle avec l'approche automatisée.
+
+
+
+```{r}
+
+p=2
+d=1
+q=1
+
+```
+
+
+
+```{r}
+# Séparation des données en ensemble d'entrainement et ensemble de test 
+
+
+train_data <- head(dataAir$X.Passengers, -15)
+
+
+test_data <- tail(dataAir$X.Passengers, -15)
+
+```
+
+
+## Estimation du modèle--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#Modèle manuelle
+
+# Validation de ACF et PACF
+
+
+```{r}
+
+model_fit <- arima(train_data, order = c(2, 1, 1))
+summary(model_fit)
+
+```
+#Prédictions sur la base données
+
+```{r}
+
+
+
+dataAir.ts <- ts(dataAir$X.Passengers, start = c(1949, 1), frequency = 12)
+
+# Séparation train/test via window()
+train_ts <- window(dataAir.ts, end = c(1959, 9))
+test_ts  <- window(dataAir.ts, start = c(1959, 10))
+
+# Ajustement du modèle sur train_ts
+model_fit <- Arima(train_ts, order = c(2, 1, 1))
+
+# Prévisions
+h <- length(test_ts)
+test_forecast <- forecast(model_fit, h = h)
+
+# Tracé
+plot(forecast(model_fit, h = h), 
+     main = "Prédictions ARIMA(2,1,1)",
+     xlab = "Années", ylab = "Passagers")
+
+# Ajouter la série de test en rouge (optionnel)
+lines(test_ts, col = "red", lwd = 2)
+
+legend("topleft",
+       legend = c("Prévisions", "Observations test"),
+       col = c("blue", "red"), lwd = 2)
+
+
+
+```
+
+
+
+```{r}
+library(forecast)
+
+
+# Prédictions in-sample (valeurs ajustées) sur la période d'entraînement
+train_pred <- fitted(model_fit)
+
+###########################################
+# 3) Obtenir les prévisions sur l'ensemble test
+###########################################
+
+h <- length(test_ts)  # Nombre de points dans l'ensemble de test
+test_forecast <- forecast(model_fit, h = h)
+test_pred <- test_forecast$mean  # Vecteur de prédictions pour le test
+
+#######################################
+# 4) Calcul des métriques pour train et test
+#######################################
+
+# Convertir les séries en vecteurs numériques si besoin
+train_obs <- as.numeric(train_ts)
+test_obs  <- as.numeric(test_ts)
+
+train_pred <- as.numeric(train_pred)
+test_pred  <- as.numeric(test_pred)
+
+# -- MSE --
+train_mse <- mean((train_obs - train_pred)^2)
+test_mse  <- mean((test_obs - test_pred)^2)
+
+# -- MAE --
+train_mae <- mean(abs(train_obs - train_pred))
+test_mae  <- mean(abs(test_obs - test_pred))
+
+# -- RMSE --
+train_rmse <- sqrt(train_mse)
+test_rmse  <- sqrt(test_mse)
+
+# -- R² --
+# Pour l'ensemble d'entraînement
+ss_res_train <- sum((train_obs - train_pred)^2)
+ss_tot_train <- sum((train_obs - mean(train_obs))^2)
+train_r2     <- 1 - ss_res_train / ss_tot_train
+
+# Pour l'ensemble de test
+ss_res_test <- sum((test_obs - test_pred)^2)
+ss_tot_test <- sum((test_obs - mean(test_obs))^2)
+test_r2     <- 1 - ss_res_test / ss_tot_test
+
+#####################################################
+# 5) Créer et afficher un tableau récapitulatif des performances
+#####################################################
+
+performance_df <- data.frame(
+  MAE  = c(train_mae, test_mae),
+  MSE  = c(train_mse, test_mse),
+  RMSE = c(train_rmse, test_rmse),
+  R2   = c(train_r2, test_r2)
+)
+
+rownames(performance_df) <- c("Entraînement", "Test")
+
+print(performance_df)
+
+
+```
+
+Le modèle ARIMA(2,1,1) ajusté manuellement montre un bon ajustement sur l'ensemble d'entraînement (avec un R² élevé), mais il ne parvient pas à bien prédire la période de test, comme en témoigne un R² négatif. 
+
+Autrement dit, ce modèle ne généralise pas correctement et n'est pas adapté pour capturer la dynamique réelle de la série en dehors des données d'entraînement.
+
+
+
+#Modèle automatique--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Pour la suite, nous allons recourir à la fonction auto.arima() sur R pour sélectionner automatiquement le modèle le mieux adapté.
+
+```{r}
+
+library(forecast)
+
+model_auto <- auto.arima(train_ts)
+
+# Rrésumé du modèle
+summary(model_auto)
+
+# Prévisions sur la période de test
+h <- length(test_ts)  # Nombre de points de test
+forecast_auto <- forecast(model_auto, h = h)
+
+
+```
+L’AIC  et le BIC  sont deux indicateurs qui mesurent la qualité d’un modèle en prenant en compte à la fois son pouvoir explicatif et sa complexité (nombre de paramètres).
+Plus ces critères sont faibles, mieux le modèle parvient à décrire la série sans être trop complexe.
+Ici, le modèle automatique (ARIMA(1,1,0)) présente des valeurs d’AIC et de BIC plus basses que celles du modèle manuel (ARIMA(2,1,1)), ce qui indique qu’il s’ajuste globalement mieux aux données tout en restant moins complexe.
+
+Autrement dit, c’est un modèle plus performant et plus parcimonieux que la version manuelle.
+
+# validation ACF et PACF 
+
+```{r}
+# Supposons que votre modèle se nomme model_auto
+res <- residuals(model_auto)
+
+# Afficher l'ACF et la PACF des résidus côte à côte
+par(mfrow = c(1, 2))  # 1 ligne, 2 colonnes
+acf(res, main = "ACF des résidus")
+pacf(res, main = "PACF des résidus")
+par(mfrow = c(1, 1))  # Réinitialiser la disposition
+
+```
+
+
+#Prédictions
+
+```{r}
+#Nombre de périodes à prévoir
+h <- length(test_ts)  # Par exemple, 15 si vous avez 15 points de test
+
+# Prévisions avec le modèle
+forecasts <- forecast(model_auto, h = h)
+
+# Résumé  des prévisions
+print(forecasts)
+
+# Tracer les prévisions
+plot(forecasts,
+     main = "Prévisions du modèle ARIMA(1,1,0)",
+     xlab = "Temps",
+     ylab = "Nombre de passagers")
+
+
+lines(test_ts, col = "red", lwd = 2)
+
+legend("topleft",
+       legend = c("Prévisions", "Observations test"),
+       col = c("blue", "red"), lwd = 2)
+
+# Évaluer la performance
+accuracy(forecasts, test_ts)
+```
+
+
+
+Sur ce graphique, on observe que le modèle ARIMA(1,1,0) (ligne bleue) reproduit fidèlement la tendance et la saisonnalité de la série (ligne noire) sur la période d’entraînement. 
+De plus, les prévisions restent très proches des observations réelles sur la période de test (ligne rouge). 
+Cela indique que le modèle parvient à bien généraliser, capturant à la fois la croissance globale et les fluctuations saisonnières de la série.
+
+
+
+```{r}
+
+
+############################################
+# 1) Ajuster le modèle sur l'ensemble train
+############################################
+
+# Supposons que train_ts et test_ts soient des objets ts
+# (train_ts : 1949-01 à 1959-09, test_ts : 1959-10 à 1960-12, par ex.)
+
+model_sarima <- arima(train_ts, order = c(1,1,0), seasonal = c(0,1,0))
+
+# Afficher un résumé rapide
+summary(model_sarima)
+
+################################################
+# 2) Récupérer les prédictions sur l'entraînement
+################################################
+
+train_pred <- fitted(model_sarima)  # Valeurs ajustées sur la période d'entraînement
+
+###########################################
+# 3) Obtenir les prévisions sur l'ensemble test
+###########################################
+
+h <- length(test_ts)                # Nombre de points dans l'ensemble de test
+test_forecast <- forecast(model_sarima, h = h)
+test_pred <- test_forecast$mean     # Vecteur de prédictions
+
+#######################################
+# 4) Calcul des métriques train / test
+#######################################
+
+# Convertir les séries en vecteurs numériques si besoin
+train_obs <- as.numeric(train_ts)
+test_obs  <- as.numeric(test_ts)
+
+train_pred <- as.numeric(train_pred)
+test_pred  <- as.numeric(test_pred)
+
+# -- MSE --
+train_mse <- mean((train_obs - train_pred)^2)
+test_mse  <- mean((test_obs  - test_pred)^2)
+
+# -- MAE --
+train_mae <- mean(abs(train_obs - train_pred))
+test_mae  <- mean(abs(test_obs  - test_pred))
+
+# -- RMSE --
+train_rmse <- sqrt(train_mse)
+test_rmse  <- sqrt(test_mse)
+
+# -- R² --
+# Ensemble d'entraînement
+ss_res_train <- sum((train_obs - train_pred)^2)
+ss_tot_train <- sum((train_obs - mean(train_obs))^2)
+train_r2     <- 1 - ss_res_train / ss_tot_train
+
+# Ensemble de test
+ss_res_test  <- sum((test_obs - test_pred)^2)
+ss_tot_test  <- sum((test_obs - mean(test_obs))^2)
+test_r2      <- 1 - ss_res_test / ss_tot_test
+
+#####################################################
+# 5) Créer et afficher un tableau récapitulatif
+#####################################################
+
+performance_df <- data.frame(
+  MAE  = c(train_mae, test_mae),
+  MSE  = c(train_mse, test_mse),
+  RMSE = c(train_rmse, test_rmse),
+  R2   = c(train_r2, test_r2)
+)
+
+rownames(performance_df) <- c("Entraînement", "Test")
+
+print(performance_df)
+
+```
+
+Ces résultats indiquent que le modèle explique 99% de la variance sur l’ensemble d’entraînement et encore plus de 94% sur l’ensemble de test.  
+il s’ajuste remarquablement bien aux données historiques tout en conservant une très bonne capacité de prévision sur des observations non utilisées lors de l’entraînement.
+
+
+
+## Conclusion--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Au terme de cette analyse, nous constatons que la série AirPassengers présente une forte saisonnalité et une tendance marquée, rendant nécessaire la différenciation  pour obtenir une série stationnaire. 
+Une première approche manuelle (ARIMA(2,1,1)) s’est révélée correcte sur l’ensemble d’entraînement, mais n’a pas su généraliser sur les données de test. 
+En revanche, l’utilisation de la fonction auto.arima() a automatiquement sélectionné un modèle ARIMA(1,1,0) intégrant explicitement la saisonnalité mensuelle.
+
+
+
+
