@@ -72,7 +72,7 @@ Avant de commencer, assurez-vous d’avoir les éléments suivants installés et
    - Téléchargez et installez [R](https://cran.r-project.org/).  
    - Installez également [RStudio](https://posit.co/download/rstudio/) pour un environnement de développement intégré convivial.
   
-2. **Cloner le code du markdown disponible [automatisation.R.R](automatisation.R.R) ** 
+2. **Cloner le code du markdown disponible [Script_Passengers](Script_Passengers) ** 
 
 3. **Packages R nécessaires** :  
 
