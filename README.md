@@ -60,7 +60,7 @@ La série d’entraînement (en noir) représentant les données historiques.
 Les prévisions (en bleu) produites par le modèle sur la période de test.
 Les observations réelles de test (en rouge), permettant de comparer directement les prévisions aux valeurs réelles.
 
-En résumé, le modèle ARIMA sélectionné par auto.arima() (ARIMA(1,1,0)(0,1,0)[12]) s’ajuste de manière remarquable aux données historiques et fournit des prévisions très proches des observations réelles, comme le montrent les indicateurs de performance (R² élevé, RMSE faible). Ces résultats confirment l’efficacité de notre approche pour prévoir le nombre de passagers aériens mensuels.
+En résumé, le modèle ARIMA sélectionné par auto.arima() (ARIMA(1,1,0) s’ajuste de manière remarquable aux données historiques et fournit des prévisions très proches des observations réelles, comme le montrent les indicateurs de performance (R² élevé, RMSE faible). Ces résultats confirment l’efficacité de notre approche pour prévoir le nombre de passagers aériens mensuels.
 
 
 
